@@ -62,7 +62,7 @@ button:disabled { background-color:#ccc; cursor:not-allowed; }
 .instrucoes-btn:hover { background-color:#1ABC9C; }
 .instrucoes-container { margin-top:20px; }
 
-/* Painel fim de jogo centralizado corretamente */
+/* Painel fim de jogo centralizado */
 #fimDeJogo {
     display: none;
     position: fixed;
@@ -90,7 +90,6 @@ button:disabled { background-color:#ccc; cursor:not-allowed; }
     transform-origin: left center;
     transition: width 0.5s ease, top 0.5s ease, left 0.5s ease, transform 0.5s ease;
 }
-
 </style>
 </head>
 <body>
@@ -175,8 +174,12 @@ function selecionarModo(modo){
     iniciarMusicaFundo();
 }
 
+// --- Música ---
 function iniciarMusicaFundo(){ document.getElementById('musicaFundo').play(); }
-function pararMusicaVitoria(){ const m = document.getElementById('musicaVitoria'); m.pause(); m.currentTime=0; }
+function pararMusicaFundo(){ const m=document.getElementById('musicaFundo'); m.pause(); m.currentTime=0; }
+function tocarMusicaVitoria(){ const m=document.getElementById('musicaVitoria'); m.play(); }
+function pararMusicaVitoria(){ const m=document.getElementById('musicaVitoria'); m.pause(); m.currentTime=0; }
+
 function atualizarInfo(){
     document.getElementById('rodadasInfo').innerText=`Rodadas: ${rodadas}`;
     document.getElementById('pontosX').innerText=`Pontos X: ${pontosX}`;
@@ -192,11 +195,13 @@ function marcar(pos){
         ultimoVencedor = jogador;
         if(jogador==='X') pontosX++; else pontosO++;
         setTimeout(()=>{
-            if(rodadas>1){ rodadas--; resetarTabuleiro(); } else fimDeJogo(); 
+            if(rodadas>1){ rodadas--; resetarTabuleiro(); } 
+            else fimDeJogo(); 
         }, 800);
     } else if(tabuleiro.every(c=>c)){
         setTimeout(()=>{
-            if(rodadas>1){ rodadas--; resetarTabuleiro(); } else fimDeJogo(); 
+            if(rodadas>1){ rodadas--; resetarTabuleiro(); } 
+            else fimDeJogo(); 
         }, 800);
     } else {
         jogador = jogador==='X'?'O':'X';
@@ -206,13 +211,14 @@ function marcar(pos){
 }
 
 function fimDeJogo(){
-    // Remove linha de vitória antes do painel
     const linha = document.querySelector('.linha-vitoria');
     if(linha){ linha.style.width='0px'; setTimeout(()=>linha.remove(),300); }
 
-    let vencedor = pontosX>pontosO?'X':pontosO>pontosX?'O':'Empate';
-    let mensagem = vencedor==='Empate'?'O jogo terminou em empate!':
-                   (vencedor==='X'?'Você venceu!!':'Você perdeu!!');
+    let vencedor = pontosX>pontosO ? 'X' : pontosO>pontosX ? 'O' : 'Empate';
+    let mensagem = vencedor==='Empate' ? 'O jogo terminou em empate!' : `${vencedor} venceu!!`;
+
+    pararMusicaFundo();
+    if(vencedor!=='Empate') tocarMusicaVitoria();
 
     setTimeout(()=>{
         const painel = document.getElementById('fimDeJogo');
@@ -226,17 +232,19 @@ function fimDeJogo(){
             painel.style.transform='translate(-50%, -50%) scale(1)';
         },50);
 
-        document.getElementById('mensagemFimDeJogo').innerText=mensagem;
+        document.getElementById('mensagemFimDeJogo').innerText = mensagem;
     },350);
 }
 
 function reiniciarJogo(){
     rodadas = parseInt(document.getElementById('rodadas').value);
     pontosX=0; pontosO=0;
+    pararMusicaVitoria();
     resetarTabuleiro();
     const painel = document.getElementById('fimDeJogo');
     painel.style.display='none';
     atualizarInfo();
+    iniciarMusicaFundo();
 }
 
 function resetarTabuleiro(){
@@ -294,8 +302,41 @@ function mostrarLinhaVitoria(comb){
 
 function exibirInstrucoes(){ document.getElementById('instrucoesModal').style.display='block'; }
 function fecharInstrucoes(){ document.getElementById('instrucoesModal').style.display='none'; }
-function jogadaBot(){ let j = tabuleiro.findIndex(c=>c===''); marcar(j); }
+
+// --- Bot Inteligente ---
+function jogadaBot(){
+    // 1. Tentar vencer
+    let j = encontrarJogadaVitoria(jogadorBot);
+    if(j !== -1){ marcar(j); return; }
+
+    // 2. Bloquear jogador
+    let adversario = jogadorBot==='X'?'O':'X';
+    j = encontrarJogadaVitoria(adversario);
+    if(j !== -1){ marcar(j); return; }
+
+    // 3. Priorizar centro
+    if(tabuleiro[4]===''){ marcar(4); return; }
+
+    // 4. Priorizar cantos
+    let cantos = [0,2,6,8].filter(c=>tabuleiro[c]==='');
+    if(cantos.length>0){ marcar(cantos[Math.floor(Math.random()*cantos.length)]); return; }
+
+    // 5. Qualquer posição vazia
+    j = tabuleiro.findIndex(c=>c==='');
+    if(j!==-1) marcar(j);
+}
+
+function encontrarJogadaVitoria(jogadorChecar){
+    const vitorias = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    for(let comb of vitorias){
+        const [a,b,c] = comb;
+        let line = [tabuleiro[a], tabuleiro[b], tabuleiro[c]];
+        if(line.filter(x=>x===jogadorChecar).length===2 && line.includes('')){
+            return comb[line.indexOf('')];
+        }
+    }
+    return -1;
+}
 </script>
 </body>
 </html>
-
